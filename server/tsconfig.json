@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", // Target modern JavaScript
+    "module": "ESNext", // Use ES modules
+    "moduleResolution": "Node", // Resolve modules like Node.js
+    "esModuleInterop": true, // Enable ES module interop for CommonJS
+    "strict": true, // Enable strict type-checking
+    "outDir": "./dist", // Output directory for compiled files
+    "rootDir": "./src", // Source directory
+    "skipLibCheck": true // Skip type-checking for libraries
+  },
+  "include": ["src/**/*"], // Include all files in src
+  "exclude": ["node_modules"] // Exclude node_modules
+}
