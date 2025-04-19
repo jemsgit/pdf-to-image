@@ -12,7 +12,7 @@ const uploadsDirPath = path.resolve(uploadsDir);
 checkDirAndCreate(uploadsDirPath);
 
 export async function parsePdf(filePath: string, onResult) {
-  const inputPath = filePath; // Path to uploaded PDF
+  const inputPath = filePath;
   const outputDirPath = path.join(uploadsDirPath, Date.now().toString()); // Unique folder
   const zipDirPath = path.join(outputDirPath, tempDir);
   const zipFilePath = path.join(zipDirPath, `${Date.now()}.zip`);

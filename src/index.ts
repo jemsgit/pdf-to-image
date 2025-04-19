@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import mongoose from "mongoose";
-import multer from "multer";
 import cors from "cors";
 import bodyParser from "body-parser";
 import Stripe from "stripe";
@@ -12,8 +11,10 @@ import { dirname } from "path";
 
 import dotenv from "dotenv";
 import { parsePdf } from "./utils/pdf-parser";
-
-console.log(parsePdf);
+import { convertPdf } from "./service/pdf-convert-service";
+import { clearFiles } from "./utils/fs-utils";
+import { verifyToken } from "./service/oauth-service";
+import { initFileMiddleware } from "./service/file-storage";
 
 dotenv.config();
 
@@ -21,12 +22,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-// const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.json());
-const upload = multer({ dest: "uploads/" });
+const upload = initFileMiddleware();
 
 // mongoose.connect(process.env.MONGO_URI, {
 //   useNewUrlParser: true,
@@ -55,35 +55,21 @@ const upload = multer({ dest: "uploads/" });
 
 app.post(
   "/convert",
+  verifyToken,
   upload.single("pdf"),
   async (req: Request, res: Response) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-
-    //   const { email } = req.body;
-    //   const user = await User.findOne({ email });
-
     try {
-      parsePdf(req.file.path, (resPath) => {
-        res.download(resPath, "converted-images.zip", () => {
-          fs.unlinkSync(resPath); // Cleanup after download
-          //fs.removeSync(outputDir); // Cleanup image files
-        });
+      const { path: resPath, name } = await convertPdf(req.file);
+      res.download(resPath, name, () => {
+        clearFiles(resPath);
       });
-      // return res.status(200).json({ error: "Conversion failed" });
     } catch (error) {
-      console.error(error);
+      console.log(error);
       return res.status(500).json({ error: "Conversion failed" });
     }
-
-    //   if (user.conversions < 5 || user.subscriptionActive) {
-    //     user.conversions += 1;
-    //     await user.save();
-    //     res.json({ success: true });
-    //   } else {
-    //     res.json({ paywall: true });
-    //   }
   },
 );
 

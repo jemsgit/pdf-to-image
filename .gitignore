@@ -2,6 +2,10 @@ node_modules
 dist
 .env
 
-server/uploads
+uploads
+
+pb_data/
+pb_migrations/
+pocketbase
 
 .DS_Store
