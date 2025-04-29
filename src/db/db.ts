@@ -1,7 +1,16 @@
-import Pocketbase, { RecordModel } from "pocketbase";
+import PocketBase, { RecordModel } from "pocketbase";
 
-const POCKETBASE_URL = process.env.POCKETBASE_URL;
-const pb = new PocketBase(POCKETBASE_URL);
+let pb: PocketBase | null = null;
+
+export async function initDB() {
+  const POCKETBASE_URL = process.env.POCKETBASE_URL;
+  pb = new PocketBase(POCKETBASE_URL);
+  await pb.collection('_superusers').authWithPassword(
+    "jemguns@gmail.com",
+    "Jack15admin!",
+    { cache: "no-store" }
+  );
+}
 
 export interface User extends RecordModel {
   email: string;
@@ -14,18 +23,22 @@ export interface FileRecord extends RecordModel {
   file: File;
 }
 
-export async function getUser(email: string) {
+export async function getUser(email: string): Promise<User> {
   const record = await pb
     .collection("extension_users")
-    .getFirstListItem(`email="${email}"`);
+    .getFirstListItem(`email="${email}"`, { requestKey: null });
+  console.log(record)
+  return record as User
 }
 
-export async function createUser(email: string) {
+export async function createUser(email: string): Promise<User> {
   const record = await pb.collection("extension_users").create({
     email,
     convertionsCount: 0,
     subscriptionExpiration: null,
   });
+  console.log(record)
+  return record;
 }
 
 export async function saveFile(email: string, file: File) {
@@ -33,4 +46,8 @@ export async function saveFile(email: string, file: File) {
     email,
     file,
   });
+}
+
+export async function setUserConvertions(userId: RecordModel['id'], convertionsCount: number) {
+  await pb.collection("extension_users").update(userId, {convertionsCount })
 }

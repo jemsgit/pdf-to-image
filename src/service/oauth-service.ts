@@ -1,20 +1,22 @@
-import { OAuth2Client } from "google-auth-library";
 import axios from 'axios';
 
-
-const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
-const client = new OAuth2Client(CLIENT_ID);
 
 export async function verifyToken(
   req: Request,
   res: Response,
   next: NextFunction,
 ) {
-  // if (1) {
-  //   next();
-  //   return;
-  // }
-  console.log(req.headers)
+  const CLIENT_ID = process.env.OAUTH_CLIENT_ID;
+  const SKIP_AUTH = process.env.SKIP_AUTH_CHECK === '1'
+  if (SKIP_AUTH) {
+    req.user = {
+      email: 'test@gmail.com',
+    }
+    console.log(req.user)
+    next();
+    return;
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: "No token provided" });
@@ -27,11 +29,9 @@ export async function verifyToken(
       `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${token}`
     );
 
-    console.log(data)
-
-    // if (data.aud !== CLIENT_ID) {
-    //   return res.status(403).json({ error: "Invalid client ID" });
-    // }
+    if (data.aud !== CLIENT_ID) {
+      return res.status(403).json({ error: "Invalid client ID" });
+    }
 
     req.user = {
       id: data.sub,
@@ -39,9 +39,8 @@ export async function verifyToken(
       name: data.name,
       picture: data.picture,
     };
-    console.log(req.user)
 
-    next(); // Allow request to proceed
+    next();
   } catch (error) {
     console.error("Token verification failed:", error);
     return res.status(403).json({ error: "Invalid token" });

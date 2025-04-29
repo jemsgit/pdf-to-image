@@ -1,25 +1,18 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express, { Request, Response } from "express";
-import mongoose from "mongoose";
 import cors from "cors";
 import bodyParser from "body-parser";
-import Stripe from "stripe";
-import archiver from "archiver";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
-
-import dotenv from "dotenv";
-import { parsePdf } from "./utils/pdf-parser";
-import { convertPdf } from "./service/pdf-convert-service";
+import { convertPdfs } from "./service/pdf-convert-service";
 import { clearFiles } from "./utils/fs-utils";
 import { verifyToken } from "./service/oauth-service";
 import { initFileMiddleware } from "./service/file-storage";
+import { getUser, incrementUserConvertions, saveUser } from "./service/user-service";
+import { initDB } from "./db/db";
+import { UserNotFoundError } from "./errors/UserNotFound";
 
-dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+await initDB();
 
 const app = express();
 
@@ -28,99 +21,75 @@ app.use(express.json());
 app.use(bodyParser.json());
 const upload = initFileMiddleware();
 
-// mongoose.connect(process.env.MONGO_URI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// });
-
-// const UserSchema = new mongoose.Schema({
-//   email: String,
-//   conversions: { type: Number, default: 0 },
-//   subscriptionActive: { type: Boolean, default: false },
-//   stripeCustomerId: String,
-// });
-
-// const User = mongoose.model("User", UserSchema);
-
-// app.get("/user-info", async (req, res) => {
-//   const { email } = req.query;
-//   let user = await User.findOne({ email });
-
-//   if (!user) {
-//     user = await User.create({ email });
-//   }
-
-//   res.json(user);
-// });
-
 app.post(
   "/convert",
   verifyToken,
-  upload.single("pdf"),
+  upload.array("pdfs"),
   async (req: Request, res: Response) => {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
+    if (!req.files || !(req.files instanceof Array)) {
+      return res.status(400).json({ error: "No files uploaded" });
     }
     try {
-      const { path: resPath, name } = await convertPdf(req.file);
+      let user;
+      try {
+        user = await getUser(req.user.email);
+      } catch(err) {
+        if (err instanceof UserNotFoundError) {
+          user = await saveUser(req.user.email)
+        }
+      }
+
+      if(!user) {
+        return res.status(500).json({ error: "Conversion failed" });
+      }
+      const { path: resPath, folder, name } = await convertPdfs(req.files);
+
       res.download(resPath, name, () => {
-        clearFiles(resPath);
+        clearFiles(folder);
+        req.files?.forEach(file => {
+          clearFiles(file.path)
+        })
       });
+      incrementUserConvertions(user.email, 1)
     } catch (error) {
-      console.log(error);
+      req.files?.forEach(file => {
+        clearFiles(file.path)
+      })
       return res.status(500).json({ error: "Conversion failed" });
     }
   },
 );
 
-// app.post("/create-checkout-session", async (req, res) => {
-//   const { plan } = req.body;
-//   const priceId =
-//     plan === "basic"
-//       ? process.env.STRIPE_PRICE_BASIC
-//       : process.env.STRIPE_PRICE_PRO;
+app.get(
+  "/user",
+  verifyToken,
+  async (req: Request, res: Response) => {
+   
+    try {
+      let user;
+      try {
+        user = await getUser(req.user.email);
+      } catch(err) {
+        if (err instanceof UserNotFoundError) {
+          user = await saveUser(req.user.email)
+        }
+      }
 
-//   const session = await stripe.checkout.sessions.create({
-//     payment_method_types: ["card"],
-//     mode: "subscription",
-//     line_items: [{ price: priceId, quantity: 1 }],
-//     success_url:
-//       "https://your-extension.com/success?session_id={CHECKOUT_SESSION_ID}",
-//     cancel_url: "https://your-extension.com/cancel",
-//   });
+      if (!user) {
+        return res.status(500).json({ error: "Something went wrong" });
+      }
 
-//   res.json({ url: session.url });
-// });
-
-// app.post(
-//   "/webhook",
-//   express.raw({ type: "application/json" }),
-//   async (req, res) => {
-//     const sig = req.headers["stripe-signature"];
-
-//     try {
-//       const event = stripe.webhooks.constructEvent(
-//         req.body,
-//         sig,
-//         process.env.STRIPE_WEBHOOK_SECRET
-//       );
-
-//       if (event.type === "checkout.session.completed") {
-//         const session = event.data.object;
-//         const customer = await stripe.customers.retrieve(session.customer);
-
-//         await User.findOneAndUpdate(
-//           { email: customer.email },
-//           { subscriptionActive: true, stripeCustomerId: session.customer }
-//         );
-//       }
-
-//       res.json({ received: true });
-//     } catch (err) {
-//       res.status(400).send(`Webhook Error: ${err.message}`);
-//     }
-//   }
-// );
+      res.send({
+        email: user.email,
+        convertionsCount: user.convertionsCount
+      })
+      
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({ error: "Something went wrong" });
+    }
+  },
+);
 
 const PORT = 3000;
 app.listen(PORT, () =>
