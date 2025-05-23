@@ -13,7 +13,8 @@ export async function initDB() {
 }
 
 export interface User extends RecordModel {
-  email: string;
+  email?: string;
+  anonUsername?: string;
   convertionsCount: number;
   subscriptionExpiration: string;
 }
@@ -23,12 +24,30 @@ export interface FileRecord extends RecordModel {
   file: File;
 }
 
+export async function getAnonUser(username: string): Promise<User> {
+  const record = await pb
+    .collection("extension_users")
+    .getFirstListItem(`anonUsername="${username}"`, { requestKey: null });
+  console.log(record)
+  return record as User
+}
+
 export async function getUser(email: string): Promise<User> {
   const record = await pb
     .collection("extension_users")
     .getFirstListItem(`email="${email}"`, { requestKey: null });
   console.log(record)
   return record as User
+}
+
+export async function createAnonymousUser(anonUsername: string): Promise<User> {
+  const record = await pb.collection("extension_users").create({
+    anonUsername,
+    convertionsCount: 0,
+    subscriptionExpiration: null,
+  });
+  console.log(record)
+  return record;
 }
 
 export async function createUser(email: string): Promise<User> {
@@ -49,5 +68,9 @@ export async function saveFile(email: string, file: File) {
 }
 
 export async function setUserConvertions(userId: RecordModel['id'], convertionsCount: number) {
-  await pb.collection("extension_users").update(userId, {convertionsCount })
+  await pb.collection("extension_users").update(userId, { convertionsCount })
+}
+
+export async function setEmailToAnonUser(userId: RecordModel['id'], email: string) {
+  return await pb.collection("extension_users").update(userId, { email })
 }

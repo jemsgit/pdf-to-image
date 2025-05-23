@@ -1,5 +1,5 @@
 import fs from "fs";
-import { rimraf, rimrafSync, native, nativeSync } from 'rimraf'
+import { rimraf } from 'rimraf'
 
 
 export function checkDirAndCreate(path: string) {
@@ -14,13 +14,11 @@ export function clearFiles(path: string) {
 
 export function getFileName(fileName: string) {
   const chunkNames = fileName.split(".");
-  return sanitizeFileName(chunkNames[0]) || "Untitled";
+  return chunkNames[0] || "Untitled";
 }
 
 export function sanitizeFileName(name: string): string {
   return name
-    .normalize("NFKD")                           // Normalize accented characters
-    .replace(/[\u0300-\u036F]/g, "")             // Remove diacritics
-    .replace(/[^a-zA-Z0-9-_]/g, "_")             // Replace unsafe characters
+    .replace(/[^a-zA-Z0-9-_]/g, "X")             // Replace unsafe characters
     .toLowerCase();                              // Optional: lowercase for consistency
 }

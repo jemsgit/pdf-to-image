@@ -1,4 +1,4 @@
-import path from "path";
+import { ConvertionResult } from "../types/convertor";
 import { getFileName } from "../utils/fs-utils";
 import { parseMultiplePdf, parsePdf } from "../utils/pdf-parser";
 
@@ -11,10 +11,9 @@ function convertSinglePdf(file: Express.Multer.File) {
   );
 }
 
-export async function convertPdfs(files: Express.Multer.File[]) {
-   // Unique folder
-   return new Promise((res, rej) =>
-    parseMultiplePdf(files, (zipPath, resultFolder) => {
+export async function convertPdfs(files: Express.Multer.File[]): Promise<ConvertionResult> {
+   return new Promise((res) =>
+    parseMultiplePdf(files, (zipPath: string, resultFolder: string) => {
       res({ path: zipPath, folder: resultFolder, name: `1-converted.zip` });
     }
   ))

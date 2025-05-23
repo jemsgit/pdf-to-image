@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { NextFunction, Request, Response } from 'express';
 
 
 export async function verifyToken(
@@ -12,12 +13,11 @@ export async function verifyToken(
     req.user = {
       email: 'test@gmail.com',
     }
-    console.log(req.user)
     next();
     return;
   }
 
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers['authorization'];
   if (!authHeader) {
     return res.status(401).json({ error: "No token provided" });
   }

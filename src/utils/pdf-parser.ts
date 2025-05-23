@@ -12,15 +12,19 @@ export const tempDir = "temp";
 const uploadsDirPath = path.resolve(uploadsDir);
 checkDirAndCreate(uploadsDirPath);
 
-export async function parseMultiplePdf(files: Express.Multer.File[], onResult) {
+export async function parseMultiplePdf(files: Express.Multer.File[], onResult: (zipPath: string, path2: string) => void) {
   const outputDirPath = path.join(uploadsDirPath, Date.now().toString()); // Unique folder
   checkDirAndCreate(outputDirPath);
+
   const outputDirImagesPath = path.join(outputDirPath, 'results'); // Unique folder
   checkDirAndCreate(outputDirImagesPath);
+
   for(let i =0; i < files.length; i++) {
     const file = files[i];
+    file.originalname = Buffer.from(file.originalname, 'latin1').toString('utf8')
     const fileName = getFileName(file.originalname);
-    const currentFileDirPath = path.join(outputDirImagesPath, fileName)
+
+    const currentFileDirPath = path.join(outputDirImagesPath, fileName);
     checkDirAndCreate(currentFileDirPath);
     try{
       const document = await pdf(file.path, { scale: 3 });
@@ -36,14 +40,11 @@ export async function parseMultiplePdf(files: Express.Multer.File[], onResult) {
   const outputZipPath = path.join(outputDirPath, `convert-${Date.now()}.zip`);
   const output = fs.createWriteStream(outputZipPath);
   const archive = archiver("zip", { zlib: { level: 9 } });
+
   output.on("close", () => {
-    console.log(`✅ Archive created: ${archive.pointer()} total bytes`);
     onResult(outputZipPath, outputDirPath);
   });
 
-  // archive.on("error", (err) => {
-  //   reject(err);
-  // });
 
   archive.pipe(output);
 
